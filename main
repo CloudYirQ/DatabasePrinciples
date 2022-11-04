@@ -1,0 +1,207 @@
+import pymysql
+import PySimpleGUI as sg
+
+
+def executeSql(sql='show databases'):
+    db = pymysql.connect(
+        host='localhost',
+        user='root',
+        password='xxxxxxxxx', # password
+        db='week4p130',
+        charset='utf8mb4'
+    )
+    cursor = db.cursor()
+    cursor.execute(sql)
+    db.commit()
+    resAll = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return resAll
+
+
+def toSQLString(dicIn, SQLMode):
+    """
+    :param dicIn: {0: 'SNO11', 1: 'name111', 2: 'status222', 3: 'city3'}
+    :param SQLMode: Search, Insert, Fix, Delete
+    :return: str
+    """
+    if SQLMode == 'S':
+        if dicIn[0] == '' and dicIn[1] != '':
+            return "select * from s where sstatus = {}".format(dicIn[1])
+        elif dicIn[0] != '' and dicIn[1] == '':
+            return "select * from s where sno = '{}'".format(dicIn[0])
+        else:
+            return "select * from s where sno = '{}' and sstatus = {}" \
+                .format(dicIn[0], dicIn[1])
+    elif SQLMode == 'IS':
+        return "insert into s(sno, sname, sstatus, city) values ('{}', '{}', {}, '{}')" \
+            .format(dicIn[0], dicIn[1], dicIn[2], dicIn[3])
+    elif SQLMode == 'ISPJ':
+        return "insert into spj(sno, pno, jno, qty) values ('{}', '{}', '{}', {})" \
+            .format(dicIn[0], dicIn[1], dicIn[2], dicIn[3])
+    elif SQLMode == 'F':
+        return "update spj set qty = qty * 1.{} where sno = '{}'" \
+            .format(int(dicIn[1]), dicIn[0])
+    elif SQLMode == 'DSPJ':
+        return "delete from spj where sno = '{}'".format(dicIn[0])
+    elif SQLMode == 'DS':
+        return "delete from s where sno = '{}'".format(dicIn[0])
+
+
+def searchWindow():
+    layout = [[(sg.Text('Search by\n\t↓SNO↓\t          or\t           ↓STATUS↓', size=[40, 2]))],
+              [sg.Multiline(size=(20, 2), enter_submits=True),
+               sg.Multiline(size=(20, 2), enter_submits=True),
+               sg.Button('Submit', button_color=(sg.YELLOWS[0], sg.BLUES[0])),
+               sg.Button('EXIT', button_color=(sg.YELLOWS[0], sg.GREENS[0]))]]
+    window = sg.Window('Searching...', layout, default_element_size=(30, 2))
+    while True:
+        event, value = window.read()
+        if event == 'Submit':
+            searchData.append(value)
+            window.close()
+            return True
+        else:
+            break
+    window.close()
+    return False
+
+
+def insertWindow():
+    insertTable = 'IS'
+    layout = [[sg.Button('S Table'), sg.Button('SPJ Table')],
+              [(sg.Text('Insert SNO, SNAME, STATUS, CITY', key='A', size=[40, 2]))],
+              [sg.Multiline(size=(10, 2), enter_submits=True),
+               sg.Multiline(size=(10, 2), enter_submits=True),
+               sg.Multiline(size=(10, 2), enter_submits=True),
+               sg.Multiline(size=(10, 2), enter_submits=True),
+               sg.Button('Submit', button_color=(sg.YELLOWS[0], sg.BLUES[0])),
+               sg.Button('EXIT', button_color=(sg.YELLOWS[0], sg.GREENS[0]))]]
+    window = sg.Window('Inserting...', layout, default_element_size=(30, 2))
+    while True:
+        event, value = window.read()
+        if event == 'S Table':
+            window['A'].update('Insert SNO, SNAME, STATUS, CITY')
+            insertTable = 'IS'
+        elif event == 'SPJ Table':
+            window['A'].update('Insert SNO, PNO, JNO, QTY')
+            insertTable = 'ISPJ'
+        if event == 'Submit':
+            insertData.append(value)
+            window.close()
+            return insertTable
+        elif event in ('EXIT', None):
+            break
+    window.close()
+    return False
+
+
+def fixWindow():
+    layout = [[(sg.Text('Fix data by\n     ↓SNO↓      which increased by    ↓INCREASE%↓', size=[70, 2]))],
+              [sg.Multiline(size=(20, 2), enter_submits=True),
+               sg.Multiline(size=(20, 2), enter_submits=True),
+               sg.Button('Submit', button_color=(sg.YELLOWS[0], sg.BLUES[0])),
+               sg.Button('EXIT', button_color=(sg.YELLOWS[0], sg.GREENS[0]))]]
+    window = sg.Window('Fixing...', layout, default_element_size=(30, 2))
+    while True:
+        event, value = window.read()
+        if event == 'Submit':
+            fixData.append(value)
+            window.close()
+            return True
+        else:
+            break
+    window.close()
+    return False
+
+
+def deleteWindow():
+    layout = [[(sg.Text('Delete the information of\n\t↓SNO↓', size=[40, 2]))],
+              [sg.Multiline(size=(20, 2), enter_submits=True),
+               sg.Button('Submit', button_color=(sg.YELLOWS[0], sg.BLUES[0])),
+               sg.Button('EXIT', button_color=(sg.YELLOWS[0], sg.GREENS[0]))]]
+    window = sg.Window('Deleting...', layout, default_element_size=(30, 2))
+    while True:
+        event, value = window.read()
+        if event == 'Submit':
+            deleteData.append(value)
+            window.close()
+            return True
+        else:
+            break
+    window.close()
+    return False
+
+
+def main():
+    sg.theme('Dark')  # 设置当前主题
+    # 界面布局，将会按照列表顺序从上往下依次排列，二级列表中，从左往右依此排列
+    layout = [[sg.Button('Show S'), sg.Button('Show P'), sg.Button('Show J'), sg.Button('Show SPJ')],
+              [sg.Button('Search Data'), sg.Button('Insert Data'), sg.Button('Fix Data'), sg.Button('Delete Data')],
+              [sg.Output(size=(70, 20), font=("宋体", 10))],
+              [sg.Button('Exit')], ]
+    # 创造窗口
+    window = sg.Window("CloudYirQ's SQL Manager", layout)
+    # 事件循环并获取输入值
+    while True:
+        event, value = window.read()
+        if event in ('Exit', None):  # 如果用户关闭窗口或点击'Exit'
+            break
+        elif event == 'Search Data':
+            if not searchWindow():
+                continue
+            print('You searched ')
+            for i in executeSql(toSQLString(searchData[-1], 'S')):
+                print('\t', i)
+        elif event == 'Insert Data':
+            insMode = insertWindow()
+            if not insMode:
+                continue
+            try:
+                executeSql(toSQLString(insertData[-1], insMode))
+                print('You inserted ', '({}, {}, {}, {})'
+                      .format(insertData[-1][0], insertData[-1][1], insertData[-1][2], insertData[-1][3]))
+            except:
+                print('Foreign Key Relation ERROR!')
+        elif event == 'Fix Data':
+            if not fixWindow():
+                continue
+            executeSql(toSQLString(fixData[-1], 'F'))
+            print('You fixed ')
+            for i in executeSql("select * from spj where sno = '{}'".format(fixData[-1][0])):
+                print('\t', i)
+        elif event == 'Delete Data':
+            if not deleteWindow():
+                continue
+            print('You deleted ')
+            for i in executeSql("select * from spj where sno = '{}'".format(deleteData[-1][0])):
+                print('\t', i)
+            for i in executeSql("select * from s where sno = '{}'".format(deleteData[-1][0])):
+                print('\t', i)
+            executeSql(toSQLString(deleteData[-1], 'DSPJ'))
+            executeSql(toSQLString(deleteData[-1], 'DS'))
+        elif event == 'Show S':
+            print('S Table: ')
+            for i in executeSql('select * from s'):
+                print('\t', i)
+        elif event == 'Show P':
+            print('P Table: ')
+            for i in executeSql('select * from p'):
+                print('\t', i)
+        elif event == 'Show J':
+            print('J Table: ')
+            for i in executeSql('select * from j'):
+                print('\t', i)
+        elif event == 'Show SPJ':
+            print('SPJ Table: ')
+            for i in executeSql('select * from spj'):
+                print('\t', i)
+    window.close()
+
+
+searchData = []
+insertData = []
+fixData = []
+deleteData = []
+
+main()
